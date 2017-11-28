@@ -6,12 +6,14 @@ from app01 import models
 from app01.utils.tools.tools import gen_token
 from rest_framework.request import Request
 from app01.utils.serializers import Serializers
-
+from app01.utils.authentication import authentication
 
 # pip install djangorestframework
 class AuthView(APIView):
     """
     登录验证
+    在全局加了认证机制
+    每次返回都需要带tk
     """
 
     def get(self, request, *args, **kwargs):
@@ -34,6 +36,7 @@ class AuthView(APIView):
             # 如果有这条记录就跟新，如果没有这条记录就创建
             models.Token.objects.update_or_create(user=user_obj, defaults={'value': tk})
             # 验证成功，返会code：1002以及tk的值
+            request.user=user_obj
             response = JsonResponse({'code': 1002, 'username': username, 'tk': tk})
         else:
             # 验证失败，返会code：1001
@@ -92,3 +95,10 @@ class CreateView(APIView):
 
     def options(self, request, *args, **kwargs):
         return HttpResponse('')
+class TestUser(APIView):
+    authentication_classes = [authentication.BaseAuthen, ]
+    def get(self,request,*args,**kwargs):
+        print(request.user)
+        return HttpResponse('111')
+    def post(self,request,*args,**kwargs):
+        print()
