@@ -62,3 +62,33 @@ class CoursesView(APIView):
         except:
             data = {'code': 2001, 'msg': '没有取到课程相关的数据。。。'}
         return JsonResponse(data)
+
+from django.core.exceptions import ObjectDoesNotExist
+class CreateView(APIView):
+    def post(self, request, *args, **kwargs):
+
+        # models.Course.objects.filter(id=course_id).first()
+        #     p = models.PricePolicy.objects.get(id=policy_id, object_id=6)
+        # print(p)
+
+        # try:
+        #     policy_obj = models.PricePolicy.objects.get(id=policy_id, object_id=course_id)
+
+        # except ObjectDoesNotExist as e:
+        #     msg = "课程或课程信息变动，请重新提交数据！"
+        username = 'admin'
+        ridies_dict = {}
+        create_list = [{'course_id': '1', 'policy_id': '2'}]
+        temp_dict = {}
+        for create_dict in create_list:
+            course_id = create_dict.get('course_id')
+            policy_id = create_dict.get('policy_id')
+            policy_obj = models.PricePolicy.objects.get(id=policy_id, object_id=course_id)
+            ser = Serializers.CustomPricePolicySerializers(instance=policy_obj, many=False)
+            temp_dict[policy_id] = ser.data
+        ridies_dict[username] = temp_dict
+        return JsonResponse(ridies_dict)
+        # return HttpResponse("...")
+
+    def options(self, request, *args, **kwargs):
+        return HttpResponse('')

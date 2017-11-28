@@ -36,3 +36,17 @@ class CustomCourseDetailSerializers(serializers.ModelSerializer):
         model = models.CourseDetail
         fields = ['hours', 'course_slogan', 'why_study', 'what_to_study_brief', 'career_improvement',
                   'prerequisite', 'teachers', 'courses', 'pricePolicy', 'video_brief_link']
+
+
+class CustomPricePolicySerializers(serializers.ModelSerializer):
+    """
+    定义一个关于价格策略方面的序列化类
+    主要用来序列化数据后提供给缓存中，用来结算时使用
+    """
+    course = serializers.SerializerMethodField()
+    class Meta:
+        model = models.PricePolicy
+        fields = ['price', 'valid_period', 'course']
+
+    def get_course(self, obj):
+        return {'id': obj.content_object.id, 'name': obj.content_object.name, 'img': obj.content_object.course_img}
