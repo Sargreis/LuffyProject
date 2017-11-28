@@ -22,4 +22,5 @@ urlpatterns = [
     url(r'^api/(?P<version>\w+)/auth/$', views.AuthView.as_view(), name="auth"),  # 登录验证的路由
     url(r'^api/(?P<version>\w+)/courses/$', views.CoursesView.as_view(), name="course"),  # 显示课程信息的路由
     url(r'^api/(?P<version>\w+)/courses/(?P<id>\d+)/$', views.CoursesView.as_view(), name="detail"),  # 显示详细信息的路由
+    url(r'^api/(?P<version>\w+)/testuser/$', views.TestUser.as_view(), name="Test"),
 ]

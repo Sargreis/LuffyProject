@@ -6,7 +6,7 @@ from app01 import models
 from app01.utils.tools.tools import gen_token
 from rest_framework.request import Request
 from app01.utils.serializers import Serializers
-
+from app01.utils.authentication import authentication
 
 # pip install djangorestframework
 class AuthView(APIView):
@@ -36,6 +36,7 @@ class AuthView(APIView):
             # 如果有这条记录就跟新，如果没有这条记录就创建
             models.Token.objects.update_or_create(user=user_obj, defaults={'value': tk})
             # 验证成功，返会code：1002以及tk的值
+            request.user=user_obj
             response = JsonResponse({'code': 1002, 'username': username, 'tk': tk})
         else:
             # 验证失败，返会code：1001
@@ -64,3 +65,11 @@ class CoursesView(APIView):
         except:
             data = {'code': 2001, 'msg': '没有取到课程相关的数据。。。'}
         return JsonResponse(data)
+
+class TestUser(APIView):
+    authentication_classes = [authentication.BaseAuthen, ]
+    def get(self,request,*args,**kwargs):
+        print(request.user)
+        return HttpResponse('111')
+    def post(self,request,*args,**kwargs):
+        print()
