@@ -12,6 +12,8 @@ from app01.utils.serializers import Serializers
 class AuthView(APIView):
     """
     登录验证
+    在全局加了认证机制
+    每次返回都需要带tk
     """
 
     def get(self, request, *args, **kwargs):
