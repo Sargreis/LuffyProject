@@ -25,4 +25,6 @@ urlpatterns = [
     url(r'^api/(?P<version>\w+)/create/$', views.CreateView.as_view(), name="detail"),  # 生成订单
     url(r'^api/(?P<version>\w+)/testuser/$', views.TestUser.as_view(), name="Test"),
 
+    url(r'^api/(?P<version>\w+)/cart/$', views.CartView.as_view(), name="cart"),    # redis商品信息增删改查
+
 ]

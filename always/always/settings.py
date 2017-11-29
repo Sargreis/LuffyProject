@@ -36,7 +36,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'app01.apps.App01Config',
-    'rest_framework'
+    'rest_framework',
 ]
 
 MIDDLEWARE = [
@@ -117,3 +117,16 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 
+# --------------django-redis-------------------
+
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": "redis://172.96.192.80:6379/1",
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+            'PASSWORD': 'luffy',
+            'CONNECTION_POOL_KWARGS': {'max_connections': 100}
+        }
+    }
+}
