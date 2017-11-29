@@ -25,6 +25,9 @@ urlpatterns = [
     url(r'^api/(?P<version>\w+)/payment/$', views.PaymentView.as_view(), name="payment"),  # 生成订单
     url(r'^api/(?P<version>\w+)/testuser/$', views.TestUser.as_view(), name="Test"),
     url(r'^api/(?P<version>\w+)/shopping_cart/', views.ShoppingCartView.as_view(), name="shopping_cart"),#显示购物车中要购买的所有课程信息
+    url(r'^api/(?P<version>\w+)/shopping_cart/', views.ShoppingCartView.as_view(), name="shopping_cart"),#显示购物车中要购买的所有课程信息
+    url(r'^api/(?P<version>\w+)/pay/$', views.pay, name="pay"),#跳转到支付页面
+    url(r'^api/(?P<version>\w+)/page2/$', views.page2, name="pay"),#支付验证
 
 
 ]

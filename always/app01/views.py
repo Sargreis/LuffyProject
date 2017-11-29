@@ -1,6 +1,6 @@
 import json
 
-from django.shortcuts import render
+from django.shortcuts import render,redirect,HttpResponse
 from django.http import HttpResponse, JsonResponse
 from django.core.exceptions import ObjectDoesNotExist
 from django.utils import six
@@ -222,3 +222,64 @@ class ShoppingCartView(authentication.BaseAuthen,APIView):
     def post(self, request, *args, **kwargs):
         conn.hset("luffy_car",request.user.id,"{'name':'21天学会Python','img':'xxxxxx.ong','selected_policy_id':2,'policy_list':[{'id':1,'name':'120天','price':99.99}]}")
         return HttpResponse("post...")
+
+##############################支付相关##########################
+from app01.utils.pay.pay import AliPay
+import time
+def ali():
+    app_id = "2016082500309412"
+    #post请求
+    notify_url = "http://127.0.0.1:8008/api/v1/page2/"
+    #get请求
+    return_url = "http://127.0.0.1:8008/api/v1/pay/"
+    merchant_private_key_path = "app01/utils/keys/pri"
+    alipay_public_key_path = "app01/utils/keys/pub"
+
+    alipay = AliPay(
+        appid=app_id,
+        app_notify_url=notify_url,
+        return_url=return_url,
+        app_private_key_path=merchant_private_key_path,
+        alipay_public_key_path=alipay_public_key_path,#支付宝的公钥，验证支付宝回传消息使用，不是你自己的公钥
+        debug=True,#默认是False
+    )
+    return alipay
+def pay(request):
+    if request.method == "POST":
+
+        money = float(request.POST.get("money"))
+        goods = request.POST.get("goods")
+        alipay = ali()
+        #生成支付的URL
+        query_params = alipay.direct_pay(
+            subject=goods,#商品简单描述
+            out_trade_no="x2"+str(time.time()),#商户订单号
+            total_amount=money,#交易金额（单位：元 保留两位小数）
+        )
+        pay_url = "https://openapi.alipaydev.com/gateway.do?{}".format(query_params)
+        return redirect(pay_url)
+
+def page2(request):
+    alipay = ali()
+    if request.method == "POST":
+        #检测是否支付成功
+        #去请求体中获取所有反悔的数据：状态/订单号
+        from urllib.parse import parse_qs
+        body_str = request.body.decode("utf-8")
+        post_data = parse_qs(body_str)
+        post_dict = {}
+        for k,v in post_data.items():
+            post_dict[k] = v[0]
+
+        sign = post_dict.pop('sign',None)
+        status = alipay.verify(post_dict,sign)
+        if status:
+            print(post_dict['stade_status'])
+            print(post_dict['out_trade_no'])
+        return HttpResponse("POST返回")
+    else:
+        params = request.GET.dict()
+        sign = params.pop('sign',None)
+        status = alipay.verify(params,sign)
+        print('GET验证',status)
+        return HttpResponse("支付成功")
