@@ -24,5 +24,7 @@ urlpatterns = [
     url(r'^api/(?P<version>\w+)/courses/(?P<id>\d+)/$', views.CoursesView.as_view(), name="detail"),  # 显示详细信息的路由
     url(r'^api/(?P<version>\w+)/create/$', views.CreateView.as_view(), name="detail"),  # 生成订单
     url(r'^api/(?P<version>\w+)/testuser/$', views.TestUser.as_view(), name="Test"),
+    url(r'^api/(?P<version>\w+)/shopping_cart/', views.ShoppingCartView.as_view(), name="shopping_cart"),#显示购物车中要购买的所有课程信息
+
 
 ]

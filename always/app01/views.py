@@ -7,8 +7,8 @@ from app01.utils.tools.tools import gen_token
 from rest_framework.request import Request
 from app01.utils.serializers import Serializers
 from app01.utils.authentication import authentication
-
-# pip install djangorestframework
+from rest_framework.response import Response
+import json
 class AuthView(APIView):
     """
     登录验证
@@ -82,6 +82,8 @@ class CreateView(APIView):
         username = 'admin'
         ridies_dict = {}
         create_list = [{'course_id': '1', 'policy_id': '2'}]
+
+
         temp_dict = {}
         for create_dict in create_list:
             course_id = create_dict.get('course_id')
@@ -102,3 +104,69 @@ class TestUser(APIView):
         return HttpResponse('111')
     def post(self,request,*args,**kwargs):
         print()
+
+from django_redis import get_redis_connection
+conn = get_redis_connection("default")
+class ShoppingCartView(authentication.BaseAuthen,APIView):
+    def get(self,request,*args,**kwargs):
+        """
+        点击页面上的购物车小图标，触发此函数
+        :param request:
+        :param args:
+        :param kwargs:
+        :return:
+        """
+        user_cart_dict = conn.hget("luffy_car",request.user.id)
+        print(user_cart_dict)
+        if user_cart_dict:
+            user_cart_dict = eval(user_cart_dict.decode("utf-8"))
+        return Response(user_cart_dict)
+
+
+
+    def put(self,request,*args,**kwargs):
+        """
+        前端绑定onchange事件，一旦选中的价格策略发生变化，则触发此函数
+        :param request:
+        :param args:
+        :param kwargs:
+        :return:
+        """
+        course_id = request.data.get("course_id")
+        to_change_policy_id = request.data.get("to_change_policy_id")
+        user_courses_dict = conn.hget("luffy_car", request.user.id)
+
+        if user_courses_dict:
+            user_courses_dict = eval(user_courses_dict.decode("utf-8"))
+            course_detail_dict = user_courses_dict.get(course_id)
+            selected_policy_id = course_detail_dict.get("selected_policy_id")
+            course_detail_dict["selected_policy_id"] = to_change_policy_id
+            price_policy_list = course_detail_dict["policy_list"]
+            date = models.PricePolicy.objects.get(id=selected_policy_id).valid_period
+            price = models.PricePolicy.objects.get(id=selected_policy_id).price
+            to_change_policy ={"id":selected_policy_id,"name":date,"price":price}
+            for item in price_policy_list:
+                if item.get("id") == selected_policy_id:
+                    price_policy_list.remove(item)
+                else:
+                    price_policy_list.append(to_change_policy)
+        return Response(user_courses_dict)
+    def delete(self,request,*args,**kwargs):
+        """
+        删除某个课程，点击删除按钮触发此函数
+        :param request:
+        :param args:
+        :param kwargs:
+        :return:
+        """
+        course_id = request.data.get("course_id")
+        user_courses_dict = conn.hget("luffy_car",request.user.id)
+        if user_courses_dict:
+            user_courses_dict = eval(user_courses_dict.decode("utf-8"))
+            user_courses_dict.pop(course_id)
+        return Response(user_courses_dict)
+
+
+    def post(self, request, *args, **kwargs):
+        conn.hset("luffy_car",request.user.id,"{'name':'21天学会Python','img':'xxxxxx.ong','selected_policy_id':2,'policy_list':[{'id':1,'name':'120天','price':99.99}]}")
+        return HttpResponse("post...")
