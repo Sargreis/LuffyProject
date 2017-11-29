@@ -22,7 +22,7 @@ urlpatterns = [
     url(r'^api/(?P<version>\w+)/auth/$', views.AuthView.as_view(), name="auth"),  # 登录验证的路由
     url(r'^api/(?P<version>\w+)/courses/$', views.CoursesView.as_view(), name="course"),  # 显示课程信息的路由
     url(r'^api/(?P<version>\w+)/courses/(?P<id>\d+)/$', views.CoursesView.as_view(), name="detail"),  # 显示详细信息的路由
-    url(r'^api/(?P<version>\w+)/create/$', views.CreateView.as_view(), name="detail"),  # 生成订单
+    url(r'^api/(?P<version>\w+)/payment/$', views.PaymentView.as_view(), name="payment"),  # 生成订单
     url(r'^api/(?P<version>\w+)/testuser/$', views.TestUser.as_view(), name="Test"),
     url(r'^api/(?P<version>\w+)/shopping_cart/', views.ShoppingCartView.as_view(), name="shopping_cart"),#显示购物车中要购买的所有课程信息
 

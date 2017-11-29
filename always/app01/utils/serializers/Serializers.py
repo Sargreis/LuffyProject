@@ -62,3 +62,38 @@ class CustomPricePolicySerializers(serializers.ModelSerializer):
 
     def get_course(self, obj):
         return {'id': obj.content_object.id, 'name': obj.content_object.name, 'img': obj.content_object.course_img}
+
+
+# class CustomCouponRecordSerializers(serializers.ModelSerializer):
+#     """
+#     定义一个优惠券发放相关的序列化类
+#     主要用来将相关数据封装后返回给前端结算页面
+#     """
+#     couponrecord_id = serializers.IntegerField(source="id")
+#     coupon_id = serializers.IntegerField(source="coupon.id")
+#     coupon_brief = serializers.CharField(source="coupon.coupon_brief")
+#     coupon_type = serializers.CharField(source="coupon.coupon_type")
+#     money_equivalent_value = serializers.CharField(source="coupon.money_equivalent_value")
+#     off_percent = serializers.CharField(source="coupon.off_percent")
+#     minimum_consume = serializers.CharField(source="coupon.minimum_consume")
+#     class Meta:
+#         model = models.CouponRecord
+#         fields = ['couponrecord_id', 'coupon_id', 'coupon_brief', 'coupon_type', 'money_equivalent_value', 'off_percent', 'minimum_consume']
+
+
+class CustomCouponRecordSerializers(serializers.ModelSerializer):
+    """
+    定义一个优惠券发放相关的序列化类
+    主要用来将相关数据封装后返回给前端结算页面
+    """
+    couponrecord_id = serializers.IntegerField(source="id")
+    coupon_id = serializers.IntegerField(source="coupon.id")
+    coupon_brief = serializers.CharField(source="coupon.brief")
+    coupon_type = serializers.CharField(source="coupon.coupon_type")
+    money_equivalent_value = serializers.IntegerField(source="coupon.money_equivalent_value")
+    off_percent = serializers.IntegerField(source="coupon.off_percent")
+    minimum_consume = serializers.IntegerField(source="coupon.minimum_consume")
+    class Meta:
+        model = models.CouponRecord
+        fields = ["couponrecord_id", "coupon_id", "coupon_brief", "coupon_type",
+                  'money_equivalent_value', 'off_percent', 'minimum_consume']

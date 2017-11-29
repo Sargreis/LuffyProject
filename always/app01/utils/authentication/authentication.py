@@ -14,7 +14,6 @@ class BaseAuthen(BaseAuthentication):
         如果需要使用认证来获取request.user的话
         无论post，和get都需要在？后面加上token=asdadsadadsasdds
         """
-
         val = request.query_params.get('token')
         tk_info=models.Token.objects.filter(value=val).first()
         if not tk_info:
