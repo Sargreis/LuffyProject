@@ -517,8 +517,8 @@ class Coupon(models.Model):
                                                     help_text="自券被领时开始算起")
     date = models.DateTimeField(auto_now_add=True)
 
-    def __str__(self):
-        return "%s(%s)" % (self.get_coupon_type_display(), self.name)
+    # def __str__(self):
+    #     return "%s(%s)" % (self.get_coupon_type_display(), self.name)
 
     def save(self, *args, **kwargs):
         if not self.coupon_valid_days or (self.valid_begin_date and self.valid_end_date):
@@ -546,7 +546,7 @@ class CouponRecord(models.Model):
     date = models.DateTimeField(auto_now_add=True, verbose_name="生成时间")
     _coupon = GenericRelation("Coupon")
     # def __str__(self):
-    #     return '%s-%s-%s' % (self.account, self.number, self.status)
+    #     return '%s-%s-%s-%s' % (self.account, self.number, self.status, self.coupon.name)
 
 
 class Order(models.Model):
@@ -867,7 +867,7 @@ class Account(models.Model):
                                 verbose_name="个人头像")
     role_choices = ((0, '学员'), (1, '导师'), (2, '讲师'), (3, '管理员'))
     role = models.SmallIntegerField(choices=role_choices, default=0, verbose_name="角色")
-    # balance = models.PositiveIntegerField(default=0, verbose_name="可提现余额")
+    balance = models.PositiveIntegerField(default=0, verbose_name="可提现余额")
     # #此处通过transaction_record表就可以查到，所以不用写在这了
 
     memo = models.TextField('备注', blank=True, null=True, default=None)

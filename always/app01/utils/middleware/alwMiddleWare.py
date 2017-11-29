@@ -10,3 +10,7 @@ class CorsMiddleWare(deprecation.MiddlewareMixin):
         response['Access-Control-Allow-Methods'] = 'POST, GET, PUT, DELETE'
         response['Access-Control-Allow-Headers'] = "Content-Type"
         return response
+
+    # def process_request(self, request):
+    #     print(request.method)
+
