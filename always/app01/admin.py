@@ -9,4 +9,6 @@ admin.site.register(models.Teacher)
 admin.site.register(models.Account)
 admin.site.register(models.Coupon)
 admin.site.register(models.CouponRecord)
+admin.site.register(models.TransactionRecord)
+
 
