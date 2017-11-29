@@ -118,10 +118,13 @@ class TestUser(APIView):
         all_coupons_list=request.data.get('all_coupons')#用户当前发来的使用的优惠券的id
         class_coupons_list=request.data.get('class_coupons')#用户发来的课程优惠券id 列表
         public_coupons_list=request.data.get('public_coupons')#公共优惠券
+        use_beili = request.data.get('beili')
         ###########服务器得到的数据
+        pricepolicy_lists_obj=[]
         for pricepolicy_list in pricepolicy_lists:
             pricepolicy_obj=models.PricePolicy.objects.filter(id=pricepolicy_list).first()#价格策略
             course_obj=pricepolicy_obj.content_object #课程id
+            pricepolicy_lists_obj.append(course_obj)#[<Course: python入门(付费)>, <Course: python入门(付费)>]
         user_coupons_class_lists=user_obj.couponrecord_set.filter(status=0,)#所有的优惠券对象
         user_coupons_class_id=[x[0] for x in list(user_coupons_class_lists.values_list('coupon__pk'))]#数据库可用的优惠券id
         for i in all_coupons_list:
@@ -129,6 +132,9 @@ class TestUser(APIView):
                 self.info['code'] = 100
                 self.info['msg'] = '非法操作'
                 return Response(self.info)
+
+        
+        if use_beili:
 
         beelin=int(user_obj.balance)#当前用户的贝里剩余
 
