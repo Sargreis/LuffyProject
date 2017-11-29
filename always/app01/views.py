@@ -90,13 +90,16 @@ class PaymentView(APIView):
                 current_course_coupon_list = coupon_list.filter(coupon__object_id=course_id)
                 # 序列化课程优惠券格式，并整理信息
                 ser = Serializers.CustomCouponRecordSerializers(instance=current_course_coupon_list, many=True)
+                # 获取用户贝里数额
+                balance = request.user.balance
 
                 course_info = pay_info.pop('course')
                 policy_info = pay_info
                 policy_info['id'] = policy_id
                 coupon_info = ser.data
-                temp_dict[course_id] = {"course_info": course_info, "policy_info": policy_info,
-                                        "coupon_info": coupon_info}
+                temp_dict[course_id] = {"course_info": course_info,
+                                        "policy_info": policy_info,
+                                        "coupon_info": coupon_info,}
             # 获取通用优惠券，并放入到temp_dict中，准备返回给前端
             gen_coupon_list = coupon_list.filter(coupon__object_id__isnull=True)
             ser = Serializers.CustomCouponRecordSerializers(instance=gen_coupon_list, many=True)
@@ -104,11 +107,12 @@ class PaymentView(APIView):
             code = 4002
             msg = "结算信息获取成功。。。"
         else:
+            balance = 0
             data = {}
             msg = "课程或课程信息已经发生变动，请重新提交数据！"
             code = 3001
 
-        return JsonResponse({"data": {"gen_coupon": data, "course": temp_dict}, "code": code, "msg": msg})
+        return JsonResponse({"data": {"gen_coupon": data, "course": temp_dict}, "code": code, "msg": msg, "balance": balance})
 
     def post(self, request, *args, **kwargs):
         """
