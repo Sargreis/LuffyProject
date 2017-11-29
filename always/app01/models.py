@@ -867,7 +867,7 @@ class Account(models.Model):
                                 verbose_name="个人头像")
     role_choices = ((0, '学员'), (1, '导师'), (2, '讲师'), (3, '管理员'))
     role = models.SmallIntegerField(choices=role_choices, default=0, verbose_name="角色")
-    # balance = models.PositiveIntegerField(default=0, verbose_name="可提现余额")
+    balance = models.PositiveIntegerField(default=0, verbose_name="可提现余额")
     # #此处通过transaction_record表就可以查到，所以不用写在这了
 
     memo = models.TextField('备注', blank=True, null=True, default=None)

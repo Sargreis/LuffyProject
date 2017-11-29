@@ -7,7 +7,10 @@ from app01.utils.tools.tools import gen_token
 from rest_framework.request import Request
 from app01.utils.serializers import Serializers
 from app01.utils.authentication import authentication
-
+from rest_framework.response import Response
+import time
+import json
+import datetime
 # pip install djangorestframework
 class AuthView(APIView):
     """
@@ -96,9 +99,40 @@ class CreateView(APIView):
     def options(self, request, *args, **kwargs):
         return HttpResponse('')
 class TestUser(APIView):
+    info={'code':1000,'msg':'无信息','data':''}
+
     authentication_classes = [authentication.BaseAuthen, ]
     def get(self,request,*args,**kwargs):
         print(request.user)
         return HttpResponse('111')
     def post(self,request,*args,**kwargs):
-        print()
+        # print(request._request.COOKIES)
+        if not request.user:
+            self.info['code']=404
+            self.info['msg']='用户登陆'
+            return Response(self.info)
+        nowtime=datetime.datetime.now()#当前时间
+        user_obj=request.user#当前用户
+        ###########用户发送过来的数据
+        pricepolicy_lists=request.data.get('pricepolicy')#用户发来的价格策略id
+        all_coupons_list=request.data.get('all_coupons')#用户当前发来的使用的优惠券的id
+        class_coupons_list=request.data.get('class_coupons')#用户发来的课程优惠券id 列表
+        public_coupons_list=request.data.get('public_coupons')#公共优惠券
+        ###########服务器得到的数据
+        for pricepolicy_list in pricepolicy_lists:
+            pricepolicy_obj=models.PricePolicy.objects.filter(id=pricepolicy_list).first()#价格策略
+            course_obj=pricepolicy_obj.content_object #课程id
+        user_coupons_class_lists=user_obj.couponrecord_set.filter(status=0,)#所有的优惠券对象
+        user_coupons_class_id=[x[0] for x in list(user_coupons_class_lists.values_list('coupon__pk'))]#数据库可用的优惠券id
+        for i in all_coupons_list:
+            if i not in user_coupons_class_id:
+                self.info['code'] = 100
+                self.info['msg'] = '非法操作'
+                return Response(self.info)
+
+        beelin=int(user_obj.balance)#当前用户的贝里剩余
+
+
+
+
+        return HttpResponse('post')
