@@ -1,2 +1,14 @@
+<<<<<<< HEAD
 .pyc
 .idea
+=======
+<<<<<<< HEAD
+.pyc
+.idea
+.sqlite3
+
+=======
+*.pyc
+*.idea
+>>>>>>> ddfc1089d69cbd6f213c1d99312355d5eb5d0822
+>>>>>>> 32c973b3ee4fb07c7123d22dbf81d53507dabf96
