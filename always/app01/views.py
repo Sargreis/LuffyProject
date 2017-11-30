@@ -398,9 +398,6 @@ class CreateOrder(APIView):
             return Response(self.info)
 
         #######################个人优惠券算法到此结束
-        print(class_price, "这是在结算的结尾了额")
-
-        print(public_coupons_list)
         if public_coupons_list:
             price = models.PricePolicy.objects.filter(id=public_coupons_list).first()
             many = price.valid_period
