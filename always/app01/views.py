@@ -368,6 +368,7 @@ class CreateOrder(APIView):
         user_coupons_class_id = [x[0] for x in list(user_coupons_class_lists.values_list('coupon__pk'))]  # 数据库可用的优惠券id
 
         #######到这里为止 个人优惠券算法到此开始
+        print()
         for i in all_coupons_list:
             if i not in user_coupons_class_id:
                 self.info['code'] = 100
