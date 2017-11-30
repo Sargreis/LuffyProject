@@ -79,9 +79,70 @@ class CoursesView(APIView):
         return JsonResponse(data)
 
 
+
+
+
+# ------redis---
+from django_redis import get_redis_connection
+
+conn = get_redis_connection("default")
+import json
+
 class Payment(APIView):
     def post(self,request,*args,**kwargs):
         print('pay')
-        print(request.data.get('course_id'))
-        print(request.data.get('price_id'))
-        return JsonResponse({'pay':'pay ok'})
+        course_id = request.data.get('course_id')
+        price_id = request.data.get('price_id')
+
+
+        tk = request.query_params.get('token')
+        course_info = models.Course.objects.filter(id=request.data.get('course_id')).first()
+        tk_obj = models.Token.objects.filter(value=tk).first()
+        policy_info = models.PricePolicy.objects.filter(id=price_id).first()
+
+        course_dic = {'name': course_info.name,
+                      'img': course_info.course_img,
+                      'selected_policy_id': price_id,
+                      'policy_list': [{'id': price_id, 'name': policy_info.valid_period, 'price': policy_info.price}]
+                      }
+        dic = {course_id:course_dic}
+        # print(dic)
+        # print(tk_obj.user.id)
+        # print(dic,"new")
+        old_info = eval(conn.hget('luffy_car', tk_obj.user.id).decode('utf-8'))
+
+        old_info.update(dic)
+        print(old_info, "++++", type(old_info))
+        # print(dic,"-----")
+        conn.hset('luffy_car', tk_obj.user.id, json.dumps(old_info).encode('utf-8'))
+
+        v = conn.hget('luffy_car', tk_obj.user.id)
+        print('------>',v)
+
+
+        return JsonResponse(old_info)
+
+    def get(self,request,*args,**kwargs):
+        return JsonResponse({'ok':'ok'})
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

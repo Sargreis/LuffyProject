@@ -116,3 +116,14 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": "redis://172.96.192.80:6379",
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+            "PASSWORD": "luffy",
+            "CONNECTION_POOL_KWARGS": {"max_connections": 20}
+        }
+    }
+}
