@@ -517,8 +517,8 @@ class Coupon(models.Model):
                                                     help_text="自券被领时开始算起")
     date = models.DateTimeField(auto_now_add=True)
 
-    # def __str__(self):
-    #     return "%s(%s)" % (self.get_coupon_type_display(), self.name)
+    def __str__(self):
+        return "%s(%s)" % (self.get_coupon_type_display(), self.name)
 
     def save(self, *args, **kwargs):
         if not self.coupon_valid_days or (self.valid_begin_date and self.valid_end_date):
@@ -546,7 +546,7 @@ class CouponRecord(models.Model):
     date = models.DateTimeField(auto_now_add=True, verbose_name="生成时间")
     _coupon = GenericRelation("Coupon")
     # def __str__(self):
-    #     return '%s-%s-%s-%s' % (self.account, self.number, self.status, self.coupon.name)
+    #     return '%s-%s-%s' % (self.account, self.number, self.status)
 
 
 class Order(models.Model):

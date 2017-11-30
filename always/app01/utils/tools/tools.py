@@ -1,9 +1,3 @@
-#! /usr/bin/env python
-# -*- coding: utf-8 -*-
-# __author__ = "Always"
-# Date: 2017/11/25
-
-
 def gen_token(username):
     """
     使用用户的用户名以及时间戳进行sha224加密，作为登录的标识

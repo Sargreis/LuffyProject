@@ -1,28 +1,24 @@
-from django.shortcuts import render,redirect,HttpResponse
+import json
+import time
+import datetime
+from django.shortcuts import redirect
 from django.http import HttpResponse, JsonResponse
-from django.core.exceptions import ObjectDoesNotExist
-from django.utils import six
+from django_redis import get_redis_connection
+from rest_framework.response import Response
 from rest_framework.views import APIView
 from app01 import models
 from app01.utils.tools.tools import gen_token
 from app01.utils.serializers import Serializers
 from app01.utils.authentication import authentication
-from rest_framework.response import Response
+from app01.utils.pay.pay import AliPay
+
+conn = get_redis_connection("default")
 
 
-from django_redis import get_redis_connection
-
-conn = get_redis_connection('default')
-from rest_framework.response import Response
-from django.utils import timezone
-import json
-import datetime
 # pip install djangorestframework
 class AuthView(APIView):
     """
     登录验证
-    在全局加了认证机制
-    每次返回都需要带tk
     """
 
     def get(self, request, *args, **kwargs):
@@ -45,12 +41,18 @@ class AuthView(APIView):
             # 如果有这条记录就跟新，如果没有这条记录就创建
             models.Token.objects.update_or_create(user=user_obj, defaults={'value': tk})
             # 验证成功，返会code：1002以及tk的值
-            request.user = user_obj
             response = JsonResponse({'code': 1002, 'username': username, 'tk': tk})
         else:
             # 验证失败，返会code：1001
             response = JsonResponse({'code': 1001})
         return response
+
+    def options(self, request, *args, **kwargs):
+        """
+        本次登录的功能是cors中的复杂请求，所以需要先通过option进行预检
+        """
+        # 本次预检返回的内容不重要
+        return HttpResponse('')
 
 
 class CoursesView(APIView):
@@ -59,17 +61,21 @@ class CoursesView(APIView):
             course_id = kwargs.get('id')
             if course_id:
                 courseDetail_obj = models.CourseDetail.objects.get(course_id=course_id)
+                courseChapter_obj = models.CourseChapter.objects.filter(course_id=course_id)
+                ok = Serializers.CourseChapterSerializers(instance=courseChapter_obj, many=True)
+                # print(courseChapter_obj)
                 ser = Serializers.CustomCourseDetailSerializers(instance=courseDetail_obj, many=False)
+                data = {'data': {'course': ser.data, 'chapter': ok.data}}
             else:
                 course_list_obj = models.Course.objects.exclude(course_type=2)
                 ser = Serializers.CustomCourseSerializers(instance=course_list_obj, many=True)
-            data = {'data': ser.data, 'code': 2002}
+                data = {'data': ser.data, 'code': 2002}
         except:
             data = {'code': 2001, 'msg': '没有取到课程相关的数据。。。'}
         return JsonResponse(data)
 
 
-class PaymentView(APIView):
+class GenOrder(APIView):
     authentication_classes = [authentication.BaseAuthen, ]
 
     def get(self, request, *args, **kwargs):
@@ -114,7 +120,8 @@ class PaymentView(APIView):
             msg = "课程或课程信息已经发生变动，请重新提交数据！"
             code = 3001
 
-        return JsonResponse({"data": {"gen_coupon": data, "course": temp_dict}, "code": code, "msg": msg, "balance": balance})
+        return JsonResponse(
+                {"data": {"gen_coupon": data, "course": temp_dict}, "code": code, "msg": msg, "balance": balance})
 
     def post(self, request, *args, **kwargs):
         """
@@ -124,7 +131,6 @@ class PaymentView(APIView):
         """
         create_list = request.data.get("create_list")
         create_list = eval(create_list) if create_list else []
-
 
         temp_dict = {}
         for create_dict in create_list:
@@ -141,10 +147,8 @@ class PaymentView(APIView):
         return HttpResponse('')
 
 
-from django_redis import get_redis_connection
-conn = get_redis_connection("default")
-class ShoppingCartView(authentication.BaseAuthen,APIView):
-    def get(self,request,*args,**kwargs):
+class ShoppingCartView(authentication.BaseAuthen, APIView):
+    def get(self, request, *args, **kwargs):
         """
         点击页面上的购物车小图标，触发此函数
         :param request:
@@ -152,156 +156,20 @@ class ShoppingCartView(authentication.BaseAuthen,APIView):
         :param kwargs:
         :return:
         """
-        user_cart_dict = conn.hget("luffy_car",request.user.id)
+        user_cart_dict = conn.hget("luffy_car", request.user.id)
         print(user_cart_dict)
         if user_cart_dict:
             user_cart_dict = eval(user_cart_dict.decode("utf-8"))
         return Response(user_cart_dict)
 
-
-
-    def put(self,request,*args,**kwargs):
-        """
-        前端绑定onchange事件，一旦选中的价格策略发生变化，则触发此函数
-        :param request:
-        :param args:
-        :param kwargs:
-        :return:
-        """
-        course_id = request.data.get("course_id")
-        to_change_policy_id = request.data.get("to_change_policy_id")
-        user_courses_dict = conn.hget("luffy_car", request.user.id)
-
-        if user_courses_dict:
-            user_courses_dict = eval(user_courses_dict.decode("utf-8"))
-            course_detail_dict = user_courses_dict.get(course_id)
-            selected_policy_id = course_detail_dict.get("selected_policy_id")
-            course_detail_dict["selected_policy_id"] = to_change_policy_id
-            price_policy_list = course_detail_dict["policy_list"]
-            date = models.PricePolicy.objects.get(id=selected_policy_id).valid_period
-            price = models.PricePolicy.objects.get(id=selected_policy_id).price
-            to_change_policy ={"id":selected_policy_id,"name":date,"price":price}
-            for item in price_policy_list:
-                if item.get("id") == selected_policy_id:
-                    price_policy_list.remove(item)
-                else:
-                    price_policy_list.append(to_change_policy)
-        return Response(user_courses_dict)
-    def delete(self,request,*args,**kwargs):
-        """
-        删除某个课程，点击删除按钮触发此函数
-        :param request:
-        :param args:
-        :param kwargs:
-        :return:
-        """
-        course_id = request.data.get("course_id")
-        user_courses_dict = conn.hget("luffy_car",request.user.id)
-        if user_courses_dict:
-            user_courses_dict = eval(user_courses_dict.decode("utf-8"))
-            user_courses_dict.pop(course_id)
-        return Response(user_courses_dict)
-
-
-    def post(self, request, *args, **kwargs):
-        conn.hset("luffy_car",request.user.id,"{'name':'21天学会Python','img':'xxxxxx.ong','selected_policy_id':2,'policy_list':[{'id':1,'name':'120天','price':99.99}]}")
-        return HttpResponse("post...")
-
-##############################支付相关##########################
-from app01.utils.pay.pay import AliPay
-import time
-def ali():
-    app_id = "2016082500309412"
-    #post请求
-    notify_url = "http://127.0.0.1:8008/api/v1/page2/"
-    #get请求
-    return_url = "http://127.0.0.1:8008/api/v1/pay/"
-    merchant_private_key_path = "app01/utils/keys/pri"
-    alipay_public_key_path = "app01/utils/keys/pub"
-
-    alipay = AliPay(
-        appid=app_id,
-        app_notify_url=notify_url,
-        return_url=return_url,
-        app_private_key_path=merchant_private_key_path,
-        alipay_public_key_path=alipay_public_key_path,#支付宝的公钥，验证支付宝回传消息使用，不是你自己的公钥
-        debug=True,#默认是False
-    )
-    return alipay
-def pay(request):
-    if request.method == "POST":
-
-        money = float(request.POST.get("money"))
-        goods = request.POST.get("goods")
-        alipay = ali()
-        #生成支付的URL
-        query_params = alipay.direct_pay(
-            subject=goods,#商品简单描述
-            out_trade_no="x2"+str(time.time()),#商户订单号
-            total_amount=money,#交易金额（单位：元 保留两位小数）
-        )
-        pay_url = "https://openapi.alipaydev.com/gateway.do?{}".format(query_params)
-        return redirect(pay_url)
-
-def page2(request):
-    alipay = ali()
-    if request.method == "POST":
-        #检测是否支付成功
-        #去请求体中获取所有反悔的数据：状态/订单号
-        from urllib.parse import parse_qs
-        body_str = request.body.decode("utf-8")
-        post_data = parse_qs(body_str)
-        post_dict = {}
-        for k,v in post_data.items():
-            post_dict[k] = v[0]
-
-        sign = post_dict.pop('sign',None)
-        status = alipay.verify(post_dict,sign)
-        if status:
-            print(post_dict['stade_status'])
-            print(post_dict['out_trade_no'])
-        return HttpResponse("POST返回")
-    else:
-        params = request.GET.dict()
-        sign = params.pop('sign',None)
-        status = alipay.verify(params,sign)
-        print('GET验证',status)
-        return HttpResponse("支付成功")
-
-
-
-
-
-
-# ####################redis购物信息存储#######################
-
-
-from django_redis import get_redis_connection
-
-conn = get_redis_connection('default')
-
-
-class CartView(APIView):
-    '''
-    根据用户选择的课程和价格策略，存到redis的购物车信息表
-    '''
-    authentication_classes = [authentication.BaseAuthen, ]
-
-    def get(self, request, *args, **kwargs):
-        user_id = request.user.id
-        # 拿到该用户购买的所有课程（字典）
-        course_list = eval(conn.hget('luffy_car', user_id).decode('utf-8'))
-        print(course_list, type(course_list))
-        return Response('get...')
-
     def post(self, request, *args, **kwargs):
         '''
         获取前端发送的数据格式：
         {'course_id':'xxx','policy_id':'xxxx'}
-        :param request: 
-        :param args: 
-        :param kwargs: 
-        :return: 
+        :param request:
+        :param args:
+        :param kwargs:
+        :return:
         '''
         from django.core.exceptions import ObjectDoesNotExist
         import json
@@ -344,50 +212,145 @@ class CartView(APIView):
         return Response('post...')
 
     def put(self, request, *args, **kwargs):
-        return Response('put...')
+        """
+        前端绑定onchange事件，一旦选中的价格策略发生变化，则触发此函数
+        :param request:
+        :param args:
+        :param kwargs:
+        :return:
+        """
+        course_id = request.data.get("course_id")
+        to_change_policy_id = request.data.get("to_change_policy_id")
+        user_courses_dict = conn.hget("luffy_car", request.user.id)
+
+        if user_courses_dict:
+            user_courses_dict = eval(user_courses_dict.decode("utf-8"))
+            course_detail_dict = user_courses_dict.get(course_id)
+            selected_policy_id = course_detail_dict.get("selected_policy_id")
+            course_detail_dict["selected_policy_id"] = to_change_policy_id
+            price_policy_list = course_detail_dict["policy_list"]
+            date = models.PricePolicy.objects.get(id=selected_policy_id).valid_period
+            price = models.PricePolicy.objects.get(id=selected_policy_id).price
+            to_change_policy = {"id": selected_policy_id, "name": date, "price": price}
+            for item in price_policy_list:
+                if item.get("id") == selected_policy_id:
+                    price_policy_list.remove(item)
+                else:
+                    price_policy_list.append(to_change_policy)
+        return Response(user_courses_dict)
 
     def delete(self, request, *args, **kwargs):
-        user_id = request.user.id
-        course_id = request.data.get('course_id')
-        course_dict = eval(conn.hget('luffy_car', user_id).decode('utf-8'))
-        if course_id in list(course_dict.keys()):
-            course_dict.pop(course_id)
-        print(course_dict)
-        conn.hset('luffy_car', user_id, course_dict)
-        return Response('delete...')
+        """
+        删除某个课程，点击删除按钮触发此函数
+        :param request:
+        :param args:
+        :param kwargs:
+        :return:
+        """
+        course_id = request.data.get("course_id")
+        user_courses_dict = conn.hget("luffy_car", request.user.id)
+        if user_courses_dict:
+            user_courses_dict = eval(user_courses_dict.decode("utf-8"))
+            user_courses_dict.pop(course_id)
+        return Response(user_courses_dict)
 
-class TestUser(APIView):
-    info={'code':1000,'msg':'无信息','data':''}
+
+##############################支付相关##########################
+
+def ali():
+    app_id = "2016082500309412"
+    # post请求
+    notify_url = "http://127.0.0.1:8008/api/v1/page2/"
+    # get请求
+    return_url = "http://127.0.0.1:8008/api/v1/pay/"
+    merchant_private_key_path = "app01/utils/keys/pri"
+    alipay_public_key_path = "app01/utils/keys/pub"
+
+    alipay = AliPay(
+            appid=app_id,
+            app_notify_url=notify_url,
+            return_url=return_url,
+            app_private_key_path=merchant_private_key_path,
+            alipay_public_key_path=alipay_public_key_path,  # 支付宝的公钥，验证支付宝回传消息使用，不是你自己的公钥
+            debug=True,  # 默认是False
+    )
+    return alipay
+
+
+def pay(request):
+    if request.method == "POST":
+        money = float(request.POST.get("money"))
+        goods = request.POST.get("goods")
+        alipay = ali()
+        # 生成支付的URL
+        query_params = alipay.direct_pay(
+                subject=goods,  # 商品简单描述
+                out_trade_no="x2" + str(time.time()),  # 商户订单号
+                total_amount=money,  # 交易金额（单位：元 保留两位小数）
+        )
+        pay_url = "https://openapi.alipaydev.com/gateway.do?{}".format(query_params)
+        return redirect(pay_url)
+
+
+def page2(request):
+    alipay = ali()
+    if request.method == "POST":
+        # 检测是否支付成功
+        # 去请求体中获取所有反悔的数据：状态/订单号
+        from urllib.parse import parse_qs
+        body_str = request.body.decode("utf-8")
+        post_data = parse_qs(body_str)
+        post_dict = {}
+        for k, v in post_data.items():
+            post_dict[k] = v[0]
+
+        sign = post_dict.pop('sign', None)
+        status = alipay.verify(post_dict, sign)
+        if status:
+            print(post_dict['stade_status'])
+            print(post_dict['out_trade_no'])
+        return HttpResponse("POST返回")
+    else:
+        params = request.GET.dict()
+        sign = params.pop('sign', None)
+        status = alipay.verify(params, sign)
+        print('GET验证', status)
+        return HttpResponse("支付成功")
+
+
+class CreateOrder(APIView):
+    info = {'code': 1000, 'msg': '无信息', 'data': ''}
 
     authentication_classes = [authentication.BaseAuthen, ]
 
     def get(self, request, *args, **kwargs):
         print(request.user)
         return HttpResponse('111')
-    def post(self,request,*args,**kwargs):
+
+    def post(self, request, *args, **kwargs):
         # print(request._request.COOKIES)
         if not request.user:
-            self.info['code']=404
-            self.info['msg']='用户登陆'
+            self.info['code'] = 404
+            self.info['msg'] = '用户登陆'
             return Response(self.info)
-        nowtime=datetime.datetime.now()#当前时间
-        user_obj=request.user#当前用户
+        nowtime = datetime.datetime.now()  # 当前时间
+        user_obj = request.user  # 当前用户
         ###########用户发送过来的数据
-        try :
-            pricepolicy_lists=request.data.get('pricepolicy')#用户发来的价格策略id
-            all_coupons_list=request.data.get('all_coupons')#用户当前发来的使用的优惠券的id
-            class_coupons_list=request.data.get('class_coupons')[0]#用户发来的课程优惠券id 列表
-            public_coupons_list=request.data.get('public_coupons')#公共优惠券
+        try:
+            pricepolicy_lists = request.data.get('pricepolicy')  # 用户发来的价格策略id
+            all_coupons_list = request.data.get('all_coupons')  # 用户当前发来的使用的优惠券的id
+            class_coupons_list = request.data.get('class_coupons')[0]  # 用户发来的课程优惠券id 列表
+            public_coupons_list = request.data.get('public_coupons')  # 公共优惠券
             use_beili = request.data.get('beili')
         except Exception as e:
             self.info['code'] = 404
             self.info['msg'] = '''
-            
+
             {"pricepolicy": [1],  -----这里的要求是传入选中的价格策略
             "all_coupons": [1, 2],  ----这里是返回所有用到的优惠券
             "class_coupons": [      ----这里是返回所有用到的课程优惠券 key：价格策略的id；value代表使用的优惠券id
                     {"1": 1}
-                            ], 
+                            ],
             "public_coupons": 2, ----这里代表公共优惠券的id
                 "beili": false  ----这里代表用不用贝里
             }
@@ -396,13 +359,13 @@ class TestUser(APIView):
             '''
             return Response(self.info)
         ###########服务器得到的数据
-        class_lists_obj=[]
+        class_lists_obj = []
         for pricepolicy_list in pricepolicy_lists:
-            pricepolicy_obj=models.PricePolicy.objects.filter(id=pricepolicy_list).first()#价格策略
-            course_obj=pricepolicy_obj.content_object #课程id
-            class_lists_obj.append(course_obj)#[<Course: python入门(付费)>, <Course: python入门(付费)>]
-        user_coupons_class_lists=user_obj.couponrecord_set.filter(status=0,)#所有的优惠券对象
-        user_coupons_class_id=[x[0] for x in list(user_coupons_class_lists.values_list('coupon__pk'))]#数据库可用的优惠券id
+            pricepolicy_obj = models.PricePolicy.objects.filter(id=pricepolicy_list).first()  # 价格策略
+            course_obj = pricepolicy_obj.content_object  # 课程id
+            class_lists_obj.append(course_obj)  # [<Course: python入门(付费)>, <Course: python入门(付费)>]
+        user_coupons_class_lists = user_obj.couponrecord_set.filter(status=0, )  # 所有的优惠券对象
+        user_coupons_class_id = [x[0] for x in list(user_coupons_class_lists.values_list('coupon__pk'))]  # 数据库可用的优惠券id
 
         #######到这里为止 个人优惠券算法到此开始
         for i in all_coupons_list:
@@ -410,23 +373,24 @@ class TestUser(APIView):
                 self.info['code'] = 100
                 self.info['msg'] = '非法操作,使用了不属于你的优惠券'
                 return Response(self.info)
-        class_price=0
+        class_price = 0
 
-        course_old_price=[]
+        course_old_price = []
         try:
             for i in pricepolicy_lists:
-                price=models.PricePolicy.objects.filter(id=i).first()
-                day=models.PricePolicy.objects.filter(id=i).first().valid_period
-                many=price.price
+                price = models.PricePolicy.objects.filter(id=i).first()
+                day = models.PricePolicy.objects.filter(id=i).first().valid_period
+                many = price.price
 
-                class_coupons=models.Coupon.objects.filter(id=class_coupons_list.get(str(price.id))).first().money_equivalent_value
-                c=many-class_coupons
-                course_old_price.append({'original_price':many,'price':class_coupons,'valid_period':day})
-                if many<class_coupons :
+                class_coupons = models.Coupon.objects.filter(
+                    id=class_coupons_list.get(str(price.id))).first().money_equivalent_value
+                c = many - class_coupons
+                course_old_price.append({'original_price': many, 'price': class_coupons, 'valid_period': day})
+                if many < class_coupons:
                     self.info['code'] = 100
                     self.info['msg'] = '优惠券优惠价格超出了物品价值无法使用'
                     return Response(self.info)
-                class_price+=c
+                class_price += c
         except Exception as e:
             self.info['code'] = 100
             self.info['msg'] = '别瞎几把传，贱人'
@@ -434,55 +398,55 @@ class TestUser(APIView):
             return Response(self.info)
 
         #######################个人优惠券算法到此结束
-        print(class_price,"这是在结算的结尾了额")
+        print(class_price, "这是在结算的结尾了额")
 
         print(public_coupons_list)
         if public_coupons_list:
             price = models.PricePolicy.objects.filter(id=public_coupons_list).first()
             many = price.valid_period
-            oter_public=class_price-many
-            if oter_public<0:
+            oter_public = class_price - many
+            if oter_public < 0:
                 self.info['code'] = 100
                 self.info['msg'] = '公共优惠券优惠价格超出了物品价值无法使用'
                 return Response(self.info)
         ######################公共优惠券算法结束
 
         ############路飞币开始
-        beelin=int(user_obj.balance)
+        beelin = int(user_obj.balance)
 
         if use_beili:
-            #当前用户的贝里剩余
-            if oter_public-(beelin/10) <= 0:
-                order_obj=models.Order.objects.create(payment_type=3,
-                                            order_number=gen_token(user_obj.username),
-                                            account=user_obj,
-                                            actual_amount=0,
-                                            status=0,
-                                            pay_time=nowtime
-                                            )
+            # 当前用户的贝里剩余
+            if oter_public - (beelin / 10) <= 0:
+                order_obj = models.Order.objects.create(payment_type=3,
+                                                        order_number=gen_token(user_obj.username),
+                                                        account=user_obj,
+                                                        actual_amount=0,
+                                                        status=0,
+                                                        pay_time=nowtime
+                                                        )
                 for i in range(len(class_lists_obj)):
                     models.OrderDetail.objects.create(
-                        order=order_obj,
-                        content_object=class_lists_obj[i],
-                        original_price=course_old_price[i]['original_price'],
-                        price=course_old_price[i]['price'],
-                        valid_period=course_old_price[i]['valid_period']
+                            order=order_obj,
+                            content_object=class_lists_obj[i],
+                            original_price=course_old_price[i]['original_price'],
+                            price=course_old_price[i]['price'],
+                            valid_period=course_old_price[i]['valid_period']
                     )
                 models.TransactionRecord.objects.create(account=user_obj,
                                                         amount=oter_public,
-                                                        balance=oter_public-(beelin/10),
+                                                        balance=oter_public - (beelin / 10),
                                                         transaction_type=2,
                                                         transaction_number=gen_token(user_obj.username)
                                                         )
 
-                #调用订单直接进行创建订单并且返回成功购买
+                # 调用订单直接进行创建订单并且返回成功购买
                 self.info['code'] = 200
                 self.info['msg'] = '购买成功啦'
                 return Response(self.info)
             else:
-                oter_public= oter_public - (beelin/10)
+                oter_public = oter_public - (beelin / 10)
 
-        print(oter_public,'跳过路飞金币')
+        print(oter_public, '跳过路飞金币')
 
         ############路飞币结束
 
@@ -496,17 +460,17 @@ class TestUser(APIView):
                                                 )
         for i in range(len(class_lists_obj)):
             models.OrderDetail.objects.create(
-                order=order_obj,
-                content_object=class_lists_obj[i],
-                original_price=course_old_price[i]['original_price'],
-                price=course_old_price[i]['price'],
-                valid_period=course_old_price[i]['valid_period']
+                    order=order_obj,
+                    content_object=class_lists_obj[i],
+                    original_price=course_old_price[i]['original_price'],
+                    price=course_old_price[i]['price'],
+                    valid_period=course_old_price[i]['valid_period']
             )
         models.TransactionRecord.objects.create(account=user_obj,
                                                 amount=oter_public,
                                                 balance=(beelin / 10),
                                                 transaction_type=2,
                                                 transaction_number=gen_token(user_obj.username)
-                                               )
-        print('到这里了么？说明下一步就是要返回给他别人一个价格了',oter_public)
+                                                )
+        print('到这里了么？说明下一步就是要返回给他别人一个价格了', oter_public)
         return HttpResponse('post请求')

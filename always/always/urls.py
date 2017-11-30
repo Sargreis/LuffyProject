@@ -22,14 +22,10 @@ urlpatterns = [
     url(r'^api/(?P<version>\w+)/auth/$', views.AuthView.as_view(), name="auth"),  # 登录验证的路由
     url(r'^api/(?P<version>\w+)/courses/$', views.CoursesView.as_view(), name="course"),  # 显示课程信息的路由
     url(r'^api/(?P<version>\w+)/courses/(?P<id>\d+)/$', views.CoursesView.as_view(), name="detail"),  # 显示详细信息的路由
-    url(r'^api/(?P<version>\w+)/payment/$', views.PaymentView.as_view(), name="payment"),  # 生成订单
-    url(r'^api/(?P<version>\w+)/testuser/$', views.TestUser.as_view(), name="Test"),
-    url(r'^api/(?P<version>\w+)/shopping_cart/', views.ShoppingCartView.as_view(), name="shopping_cart"),#显示购物车中要购买的所有课程信息
+    url(r'^api/(?P<version>\w+)/gen_order/$', views.GenOrder.as_view(), name="gen_order"),
+    url(r'^api/(?P<version>\w+)/create_order/$', views.CreateOrder.as_view(), name="create_order"),  # 生成订单
     url(r'^api/(?P<version>\w+)/shopping_cart/', views.ShoppingCartView.as_view(), name="shopping_cart"),#显示购物车中要购买的所有课程信息
     url(r'^api/(?P<version>\w+)/pay/$', views.pay, name="pay"),#跳转到支付页面
-    url(r'^api/(?P<version>\w+)/page2/$', views.page2, name="pay"),#支付验证
-
-
-    url(r'^api/(?P<version>\w+)/cart/$', views.CartView.as_view(), name="cart"),    # redis商品信息增删改查
+    url(r'^api/(?P<version>\w+)/page2/$', views.page2, name="page2"),#支付验证
 
 ]

@@ -1,3 +1,4 @@
+
 """
 Django settings for always project.
 
@@ -36,7 +37,6 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'app01.apps.App01Config',
-    'rest_framework',
 ]
 
 MIDDLEWARE = [
@@ -102,7 +102,8 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/1.11/topics/i18n/
 
-LANGUAGE_CODE = 'zh-CN'
+# LANGUAGE_CODE = 'zh-CN'
+LANGUAGE_CODE = 'en-us'
 
 TIME_ZONE = 'Asia/Shanghai'
 
@@ -112,24 +113,19 @@ USE_L10N = True
 
 USE_TZ = False
 
-
-
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/1.11/howto/static-files/
 
 STATIC_URL = '/static/'
 
-# --------------django-redis-------------------
-
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": "redis://172.96.192.80:6379/1",
+        "LOCATION": "redis://172.96.192.80:6379",
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
-            'PASSWORD': 'luffy',
-            'CONNECTION_POOL_KWARGS': {'max_connections': 100}
+            "PASSWORD": "luffy",
+            "CONNECTION_POOL_KWARGS": {"max_connections": 20}
         }
     }
 }
-
