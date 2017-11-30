@@ -267,16 +267,8 @@ def page2(request):
         status = alipay.verify(params,sign)
         print('GET验证',status)
         return HttpResponse("支付成功")
-# >>>>>>> origin/dev
 
-class TestUser(APIView):
-    info={'code':1000,'msg':'无信息','data':''}
 
-    authentication_classes = [authentication.BaseAuthen, ]
-
-    def get(self, request, *args, **kwargs):
-        print(request.user)
-        return HttpResponse('111')
 
 
 
@@ -364,10 +356,13 @@ class CartView(APIView):
         conn.hset('luffy_car', user_id, course_dict)
         return Response('delete...')
 
+class TestUser(APIView):
+    info={'code':1000,'msg':'无信息','data':''}
 
-class NoHeadView(APIView):
+    authentication_classes = [authentication.BaseAuthen, ]
 
-    def get(self,request,*args,**kwargs):
+    def get(self, request, *args, **kwargs):
+        print(request.user)
         return HttpResponse('111')
     def post(self,request,*args,**kwargs):
         # print(request._request.COOKIES)
