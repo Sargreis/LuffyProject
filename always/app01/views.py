@@ -75,79 +75,11 @@ class CoursesView(APIView):
         return JsonResponse(data)
 
 
-class GenOrder(APIView):
+
+
+############################购物车##########################
+class ShoppingCartView(APIView):#此处添加用户验证
     authentication_classes = [authentication.BaseAuthen, ]
-
-    def get(self, request, *args, **kwargs):
-        """
-        用户结算时，用get获取数据，该函数将在redis中的"pay"的信息提取出来，并获取优惠券等信息后返回；
-        用来渲染结算页面；
-        :return: JsonResponse 结算页面需要的数据；
-        """
-        pay_dict = conn.hget('pay', request.user.id)
-        if pay_dict:
-            temp_dict = {}
-            pay_dict = json.loads(pay_dict.decode("utf-8"))
-            # 获取该用户的所有未使用的优惠券
-            coupon_list = models.CouponRecord.objects.filter(account=request.user, status=0)
-
-            # 循环每一个课程信息，重新整理格式并加入到 temp_dict 中
-            for policy_id, pay_info in pay_dict.items():
-                # 6 {'valid_period': 210, 'course': {'name': 'java', 'id': 2, 'img': '/static/java'}, 'price': 200.0}
-                course_id = pay_info['course'].get('id')
-                current_course_coupon_list = coupon_list.filter(coupon__object_id=course_id)
-                # 序列化课程优惠券格式，并整理信息
-                ser = Serializers.CustomCouponRecordSerializers(instance=current_course_coupon_list, many=True)
-                # 获取用户贝里数额
-                balance = request.user.balance
-
-                course_info = pay_info.pop('course')
-                policy_info = pay_info
-                policy_info['id'] = policy_id
-                coupon_info = ser.data
-                temp_dict[course_id] = {"course_info": course_info,
-                                        "policy_info": policy_info,
-                                        "coupon_info": coupon_info,}
-            # 获取通用优惠券，并放入到temp_dict中，准备返回给前端
-            gen_coupon_list = coupon_list.filter(coupon__object_id__isnull=True)
-            ser = Serializers.CustomCouponRecordSerializers(instance=gen_coupon_list, many=True)
-            data = ser.data
-            code = 4002
-            msg = "结算信息获取成功。。。"
-        else:
-            balance = 0
-            data = {}
-            msg = "课程或课程信息已经发生变动，请重新提交数据！"
-            code = 3001
-
-        return JsonResponse(
-                {"data": {"gen_coupon": data, "course": temp_dict}, "code": code, "msg": msg, "balance": balance})
-
-    def post(self, request, *args, **kwargs):
-        """
-        用户点击立即结算时，用post提交数据，该函数将在redis中创建本次提交信息的记录；
-        格式为： "pay": {用户id: "{优惠策略id:{k1: v1, k2: v2}, 优惠策略id:{k1: v1, k2: v2}}"}
-        :return: 返回字典，code标识是否成功，msg标示提示信息；
-        """
-        create_list = request.data.get("create_list")
-        create_list = eval(create_list) if create_list else []
-
-        temp_dict = {}
-        for create_dict in create_list:
-            course_id = create_dict.get('course_id')
-            policy_id = create_dict.get('policy_id')
-            policy_obj = models.PricePolicy.objects.get(id=policy_id, object_id=course_id)
-            ser = Serializers.CustomPricePolicySerializers(instance=policy_obj, many=False)
-            temp_dict[policy_id] = ser.data
-        # ridies_dict[username] = temp_dict
-        # return JsonResponse(ridies_dict)
-        return HttpResponse("...")
-
-    def options(self, request, *args, **kwargs):
-        return HttpResponse('')
-
-
-class ShoppingCartView(authentication.BaseAuthen, APIView):
     def get(self, request, *args, **kwargs):
         """
         点击页面上的购物车小图标，触发此函数
@@ -253,72 +185,85 @@ class ShoppingCartView(authentication.BaseAuthen, APIView):
             user_courses_dict = eval(user_courses_dict.decode("utf-8"))
             user_courses_dict.pop(course_id)
         return Response(user_courses_dict)
+#########################结算###############################
+class GenOrder(APIView):
+    """
+    张刘佳：用户点击 立即支付 之前
+    """
+    authentication_classes = [authentication.BaseAuthen, ]
 
+    def get(self, request, *args, **kwargs):
+        """
+        用户结算时，用get获取数据，该函数将在redis中的"pay"的信息提取出来，并获取优惠券等信息后返回；
+        用来渲染结算页面；
+        :return: JsonResponse 结算页面需要的数据；
+        """
+        pay_dict = conn.hget('pay', request.user.id)
+        if pay_dict:
+            temp_dict = {}
+            pay_dict = json.loads(pay_dict.decode("utf-8"))
+            # 获取该用户的所有未使用的优惠券
+            coupon_list = models.CouponRecord.objects.filter(account=request.user, status=0)
 
-##############################支付相关##########################
+            # 循环每一个课程信息，重新整理格式并加入到 temp_dict 中
+            for policy_id, pay_info in pay_dict.items():
+                # 6 {'valid_period': 210, 'course': {'name': 'java', 'id': 2, 'img': '/static/java'}, 'price': 200.0}
+                course_id = pay_info['course'].get('id')
+                current_course_coupon_list = coupon_list.filter(coupon__object_id=course_id)
+                # 序列化课程优惠券格式，并整理信息
+                ser = Serializers.CustomCouponRecordSerializers(instance=current_course_coupon_list, many=True)
+                # 获取用户贝里数额
+                balance = request.user.balance
 
-def ali():
-    app_id = "2016082500309412"
-    # post请求
-    notify_url = "http://127.0.0.1:8008/api/v1/page2/"
-    # get请求
-    return_url = "http://127.0.0.1:8008/api/v1/pay/"
-    merchant_private_key_path = "app01/utils/keys/pri"
-    alipay_public_key_path = "app01/utils/keys/pub"
+                course_info = pay_info.pop('course')
+                policy_info = pay_info
+                policy_info['id'] = policy_id
+                coupon_info = ser.data
+                temp_dict[course_id] = {"course_info": course_info,
+                                        "policy_info": policy_info,
+                                        "coupon_info": coupon_info, }
+            # 获取通用优惠券，并放入到temp_dict中，准备返回给前端
+            gen_coupon_list = coupon_list.filter(coupon__object_id__isnull=True)
+            ser = Serializers.CustomCouponRecordSerializers(instance=gen_coupon_list, many=True)
+            data = ser.data
+            code = 4002
+            msg = "结算信息获取成功。。。"
+        else:
+            balance = 0
+            data = {}
+            msg = "课程或课程信息已经发生变动，请重新提交数据！"
+            code = 3001
 
-    alipay = AliPay(
-            appid=app_id,
-            app_notify_url=notify_url,
-            return_url=return_url,
-            app_private_key_path=merchant_private_key_path,
-            alipay_public_key_path=alipay_public_key_path,  # 支付宝的公钥，验证支付宝回传消息使用，不是你自己的公钥
-            debug=True,  # 默认是False
-    )
-    return alipay
+        return JsonResponse(
+            {"data": {"gen_coupon": data, "course": temp_dict}, "code": code, "msg": msg, "balance": balance})
 
+    def post(self, request, *args, **kwargs):
+        """
+        用户点击立即结算时，用post提交数据，该函数将在redis中创建本次提交信息的记录；
+        格式为： "pay": {用户id: "{优惠策略id:{k1: v1, k2: v2}, 优惠策略id:{k1: v1, k2: v2}}"}
+        :return: 返回字典，code标识是否成功，msg标示提示信息；
+        """
+        create_list = request.data.get("create_list")
+        create_list = eval(create_list) if create_list else []
 
-def pay(request):
-    if request.method == "POST":
-        money = float(request.POST.get("money"))
-        goods = request.POST.get("goods")
-        alipay = ali()
-        # 生成支付的URL
-        query_params = alipay.direct_pay(
-                subject=goods,  # 商品简单描述
-                out_trade_no="x2" + str(time.time()),  # 商户订单号
-                total_amount=money,  # 交易金额（单位：元 保留两位小数）
-        )
-        pay_url = "https://openapi.alipaydev.com/gateway.do?{}".format(query_params)
-        return redirect(pay_url)
+        temp_dict = {}
+        for create_dict in create_list:
+            course_id = create_dict.get('course_id')
+            policy_id = create_dict.get('policy_id')
+            policy_obj = models.PricePolicy.objects.get(id=policy_id, object_id=course_id)
+            ser = Serializers.CustomPricePolicySerializers(instance=policy_obj, many=False)
+            temp_dict[policy_id] = ser.data
+        # ridies_dict[username] = temp_dict
+        # return JsonResponse(ridies_dict)
+        return HttpResponse("...")
 
-
-def page2(request):
-    alipay = ali()
-    if request.method == "POST":
-        # 检测是否支付成功
-        # 去请求体中获取所有反悔的数据：状态/订单号
-        from urllib.parse import parse_qs
-        body_str = request.body.decode("utf-8")
-        post_data = parse_qs(body_str)
-        post_dict = {}
-        for k, v in post_data.items():
-            post_dict[k] = v[0]
-
-        sign = post_dict.pop('sign', None)
-        status = alipay.verify(post_dict, sign)
-        if status:
-            print(post_dict['stade_status'])
-            print(post_dict['out_trade_no'])
-        return HttpResponse("POST返回")
-    else:
-        params = request.GET.dict()
-        sign = params.pop('sign', None)
-        status = alipay.verify(params, sign)
-        print('GET验证', status)
-        return HttpResponse("支付成功")
-
+    def options(self, request, *args, **kwargs):
+        return HttpResponse('')
 
 class CreateOrder(APIView):
+    """
+    花姐姐：用户点击 立即支付  之后
+    """
     info = {'code': 1000, 'msg': '无信息', 'data': ''}
 
     authentication_classes = [authentication.BaseAuthen, ]
@@ -365,7 +310,8 @@ class CreateOrder(APIView):
             course_obj = pricepolicy_obj.content_object  # 课程id
             class_lists_obj.append(course_obj)  # [<Course: python入门(付费)>, <Course: python入门(付费)>]
         user_coupons_class_lists = user_obj.couponrecord_set.filter(status=0, )  # 所有的优惠券对象
-        user_coupons_class_id = [x[0] for x in list(user_coupons_class_lists.values_list('coupon__pk'))]  # 数据库可用的优惠券id
+        user_coupons_class_id = [x[0] for x in
+                                 list(user_coupons_class_lists.values_list('coupon__pk'))]  # 数据库可用的优惠券id
 
         #######到这里为止 个人优惠券算法到此开始
         for i in all_coupons_list:
@@ -426,11 +372,11 @@ class CreateOrder(APIView):
                                                         )
                 for i in range(len(class_lists_obj)):
                     models.OrderDetail.objects.create(
-                            order=order_obj,
-                            content_object=class_lists_obj[i],
-                            original_price=course_old_price[i]['original_price'],
-                            price=course_old_price[i]['price'],
-                            valid_period=course_old_price[i]['valid_period']
+                        order=order_obj,
+                        content_object=class_lists_obj[i],
+                        original_price=course_old_price[i]['original_price'],
+                        price=course_old_price[i]['price'],
+                        valid_period=course_old_price[i]['valid_period']
                     )
                 models.TransactionRecord.objects.create(account=user_obj,
                                                         amount=oter_public,
@@ -460,11 +406,11 @@ class CreateOrder(APIView):
                                                 )
         for i in range(len(class_lists_obj)):
             models.OrderDetail.objects.create(
-                    order=order_obj,
-                    content_object=class_lists_obj[i],
-                    original_price=course_old_price[i]['original_price'],
-                    price=course_old_price[i]['price'],
-                    valid_period=course_old_price[i]['valid_period']
+                order=order_obj,
+                content_object=class_lists_obj[i],
+                original_price=course_old_price[i]['original_price'],
+                price=course_old_price[i]['price'],
+                valid_period=course_old_price[i]['valid_period']
             )
         models.TransactionRecord.objects.create(account=user_obj,
                                                 amount=oter_public,
@@ -474,3 +420,89 @@ class CreateOrder(APIView):
                                                 )
         print('到这里了么？说明下一步就是要返回给他别人一个价格了', oter_public)
         return HttpResponse('post请求')
+##############################支付相关##########################
+
+def ali():
+    app_id = "2016082500309412"
+    # post请求,验证有没有支付成功
+    notify_url = "http://127.0.0.1:8008/api/v1/page2/"
+    # get请求,前端点击支付按钮后要跳转的页面
+    return_url = "http://127.0.0.1:8008/api/v1/page2/"
+    merchant_private_key_path = "app01/utils/keys/pri"
+    alipay_public_key_path = "app01/utils/keys/pub"
+
+    alipay = AliPay(
+            appid=app_id,
+            app_notify_url=notify_url,
+            return_url=return_url,
+            app_private_key_path=merchant_private_key_path,
+            alipay_public_key_path=alipay_public_key_path,  # 支付宝的公钥，验证支付宝回传消息使用，不是你自己的公钥
+            debug=True,  # 默认是False
+    )
+    return alipay
+
+
+def pay(request):
+    """
+    用户点击支付后，URL走这个视图函数
+    :param request:
+    :return:
+    """
+    money = float(request.data.get("money"))
+    alipay = ali()
+    # 生成支付的URL
+    query_params = alipay.direct_pay(
+            subject="路飞学城视频课程",  # 商品简单描述
+            out_trade_no="LuffyCity" + str(time.time()),  # 商户订单号
+            total_amount=money,  # 交易金额（单位：元 保留两位小数）
+    )
+    pay_url = "https://openapi.alipaydev.com/gateway.do?{}".format(query_params)
+    return redirect(pay_url)
+
+
+def page2(request):
+    alipay = ali()
+    if request.method == "POST":
+        # 检测是否支付成功
+        # 去请求体中获取所有的订单数据：1、在数据库中生成的订单id 2、使用的优惠券的id_list
+        from urllib.parse import parse_qs
+        body_str = request.body.decode("utf-8")
+        post_data = parse_qs(body_str)
+        post_dict = {}
+        for k, v in post_data.items():
+            post_dict[k] = v[0]
+
+        sign = post_dict.pop('sign', None)
+        #拿到订单id
+        order_id = request.data.get("order_id")
+        #拿到用户使用了的优惠券列表
+        coupon_list = request.data.get("coupon_list")
+        status = alipay.verify(post_dict, sign)
+        if status:
+            #修改数据库中订单的状态
+            models.Order.objects.filter(id=order_id).update(status=0)
+
+            #修改（该用户拥有的）使用过的优惠券在数据库中的状态
+            for cn in coupon_list:
+                models.CouponRecord.objects.filter(coupon_id=cn,
+                                                   account=request.user,
+                                                   order_id= order_id,
+
+                ).update(status=1)
+
+
+        else:
+            # 支付不成功，退换用户消费的贝里额
+            from django.db.models import F
+            consume_beili = float(request.data.get("consume_beili"))
+            models.TransactionRecord.objects.filter(account=request.user).update(balance=F("balance")+consume_beili)
+        return HttpResponse("POST返回")
+    else:
+        params = request.GET.dict()
+        sign = params.pop('sign', None)
+        status = alipay.verify(params, sign)
+        print('GET验证', status)
+        return HttpResponse("支付成功")
+
+
+
